@@ -199,7 +199,9 @@
             currentUser = auth.currentUser;
             window.firebaseDbReady = true;
             if (authReadyResolve) authReadyResolve(currentUser);
-            window.listenToRsvpData();
+            if (typeof window.listenToRsvpData === 'function') {
+              window.listenToRsvpData();
+            }
           } catch (authErr) {
             console.warn("Firestore Auth setup error, falling back:", authErr);
             if (authReadyResolve) authReadyResolve(null);
@@ -1127,6 +1129,27 @@
         </p>
       </div>
 
+      <!-- Bottom Admin Portal (Discrete Medium Logo Trigger) -->
+      <div class="pt-8 flex flex-col items-center justify-center">
+        <button 
+          type="button" 
+          onclick="openAdminPasswordModal()" 
+          class="group p-2 rounded-full hover:bg-morandi-softPink/30 transition-all focus:outline-none opacity-60 hover:opacity-100 cursor-pointer"
+          aria-label="管理入口"
+        >
+          <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-morandi-gold/50 shadow-sm p-0.5 bg-white group-hover:scale-105 group-hover:border-morandi-rose transition-all duration-300">
+            <img 
+              src="https://i.postimg.cc/T12t7JM5/Chat-GPT-Image-2026nian9yue12ri-shang-wu11-28-10.png" 
+              alt="Logo" 
+              width="56"
+              height="56"
+              class="w-full h-full object-cover rounded-full"
+              onerror="this.src='https://placehold.co/100x100/f9e8ea/d97080?text=Admin'"
+            />
+          </div>
+        </button>
+      </div>
+
     </div>
 
   </footer>
@@ -1835,6 +1858,45 @@ function doPost(e) {
       return false;
     }
 
+    // Admin password modal opener
+    function openAdminPasswordModal() {
+      const passInput = document.getElementById('admin-pass-input');
+      if (passInput) passInput.value = '';
+      const passError = document.getElementById('password-error');
+      if (passError) passError.classList.add('hidden');
+      openModal('password-modal');
+      setTimeout(() => {
+        if (passInput) passInput.focus();
+      }, 100);
+    }
+    window.openAdminPasswordModal = openAdminPasswordModal;
+
+    // Real-time Firestore Snapshot listener
+    window.listenToRsvpData = function() {
+      if (!window.db || !window.collection || !window.onSnapshot) return;
+      try {
+        const colRef = window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'rsvp_submissions');
+        window.onSnapshot(colRef, (snapshot) => {
+          const list = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            list.push({ id: docSnap.id, ...data });
+          });
+          list.sort((a, b) => {
+            const tA = new Date(a.createdAt || a.submit_time || 0).getTime();
+            const tB = new Date(b.createdAt || b.submit_time || 0).getTime();
+            return tB - tA;
+          });
+          rsvpSubmissions = list;
+          renderAdminTable();
+        }, (err) => {
+          console.warn("Firestore snapshot listener notice:", err);
+        });
+      } catch (err) {
+        console.warn("Firestore listen setup notice:", err);
+      }
+    };
+
     function handleAdminPasswordVerify(event) {
       if (event) event.preventDefault();
       const entered = document.getElementById('admin-pass-input')?.value;
@@ -2124,12 +2186,203 @@ function doPost(e) {
       openModal('notice-modal');
     }
 
+    // Countdown calculation
+    function updateCountdown() {
+      const now = new Date().getTime();
+      const distance = WEDDING_TARGET_TIME - now;
+
+      if (distance < 0) {
+        const daysEl = document.getElementById('timer-days');
+        const hoursEl = document.getElementById('timer-hours');
+        const minsEl = document.getElementById('timer-minutes');
+        const secsEl = document.getElementById('timer-seconds');
+        if (daysEl) daysEl.innerText = "00";
+        if (hoursEl) hoursEl.innerText = "00";
+        if (minsEl) minsEl.innerText = "00";
+        if (secsEl) secsEl.innerText = "00";
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      const pad = (n) => String(n).padStart(2, '0');
+
+      const daysEl = document.getElementById('timer-days');
+      const hoursEl = document.getElementById('timer-hours');
+      const minsEl = document.getElementById('timer-minutes');
+      const secsEl = document.getElementById('timer-seconds');
+
+      if (daysEl) daysEl.innerText = pad(days);
+      if (hoursEl) hoursEl.innerText = pad(hours);
+      if (minsEl) minsEl.innerText = pad(minutes);
+      if (secsEl) secsEl.innerText = pad(seconds);
+    }
+    setInterval(updateCountdown, 1000);
+
+    // Bot arithmetic verification generator
+    function generateMathProblem() {
+      const num1 = Math.floor(Math.random() * 8) + 2;
+      const num2 = Math.floor(Math.random() * 8) + 1;
+      currentMathAnswer = num1 + num2;
+      const questionEl = document.getElementById('math-question');
+      if (questionEl) {
+        questionEl.innerText = `${num1} + ${num2} = ?`;
+      }
+      const ansInput = document.getElementById('math-answer');
+      if (ansInput) ansInput.value = '';
+    }
+
+    // Accordion controller
+    function toggleAccordion(id) {
+      const content = document.getElementById(id);
+      const icon = document.getElementById(id + '-icon');
+      if (!content) return;
+      const isOpen = content.classList.contains('open');
+      document.querySelectorAll('#transport-section .accordion-content').forEach(el => {
+        if (el.id !== id) {
+          el.classList.remove('open');
+          const otherIcon = document.getElementById(el.id + '-icon');
+          if (otherIcon) otherIcon.style.transform = 'rotate(0deg)';
+        }
+      });
+      if (isOpen) {
+        content.classList.remove('open');
+        if (icon) icon.style.transform = 'rotate(0deg)';
+      } else {
+        content.classList.add('open');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+      }
+    }
+
+    // Form collapse controller
+    function toggleFormCollapse(contentId, iconId) {
+      const content = document.getElementById(contentId);
+      const icon = document.getElementById(iconId);
+      if (!content) return;
+      const isOpen = content.classList.contains('open');
+      if (isOpen) {
+        content.classList.remove('open');
+        if (icon) icon.style.transform = 'rotate(0deg)';
+      } else {
+        content.classList.add('open');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+      }
+    }
+
+    // Dynamic field handlers
+    function handleInvitationChange() {
+      const selected = document.querySelector('input[name="invitation_type"]:checked')?.value;
+      const badge = document.getElementById('invitation-status-badge');
+      const paperFields = document.getElementById('paper_invite_fields');
+      const digitalFields = document.getElementById('digital_invite_fields');
+
+      if (!selected) {
+        if (badge) {
+          badge.innerText = "尚未選擇（請點擊展開選擇）";
+          badge.className = "text-xs sm:text-sm font-semibold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full inline-block w-fit";
+        }
+        if (paperFields) paperFields.classList.add('hidden');
+        if (digitalFields) digitalFields.classList.add('hidden');
+        return;
+      }
+
+      if (selected === 'paper') {
+        if (badge) {
+          badge.innerText = "已選擇：紙本囍帖（已提供郵寄地址）";
+          badge.className = "text-xs sm:text-sm font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full inline-block w-fit";
+        }
+        if (paperFields) paperFields.classList.remove('hidden');
+        if (digitalFields) digitalFields.classList.add('hidden');
+      } else if (selected === 'digital') {
+        if (badge) {
+          badge.innerText = "已選擇：數位囍帖（LINE / Email）";
+          badge.className = "text-xs sm:text-sm font-semibold text-morandi-blue bg-morandi-lightBlue px-2.5 py-0.5 rounded-full inline-block w-fit";
+        }
+        if (paperFields) paperFields.classList.add('hidden');
+        if (digitalFields) digitalFields.classList.remove('hidden');
+      } else {
+        if (badge) {
+          badge.innerText = "已選擇：否，不需要囍帖";
+          badge.className = "text-xs sm:text-sm font-semibold text-gray-700 bg-gray-100 px-2.5 py-0.5 rounded-full inline-block w-fit";
+        }
+        if (paperFields) paperFields.classList.add('hidden');
+        if (digitalFields) digitalFields.classList.add('hidden');
+      }
+    }
+
+    function handleAttendanceChange() {
+      const selected = document.querySelector('input[name="attendance_status"]:checked')?.value;
+      const badge = document.getElementById('attendance-status-badge');
+      const detailsGroup = document.getElementById('attending_details_group');
+
+      if (!selected) {
+        if (badge) {
+          badge.innerText = "尚未選擇（請點擊展開選擇）";
+          badge.className = "text-xs sm:text-sm font-semibold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full inline-block w-fit";
+        }
+        if (detailsGroup) detailsGroup.classList.add('hidden');
+        return;
+      }
+
+      if (selected === 'attend') {
+        if (badge) {
+          badge.innerText = "已選擇：🎉 喜滋滋出席宴會";
+          badge.className = "text-xs sm:text-sm font-semibold text-morandi-deepRose bg-morandi-softPink px-2.5 py-0.5 rounded-full inline-block w-fit";
+        }
+        if (detailsGroup) detailsGroup.classList.remove('hidden');
+      } else {
+        if (badge) {
+          badge.innerText = "已選擇：💌 遺憾無法出席，給予祝福";
+          badge.className = "text-xs sm:text-sm font-semibold text-morandi-sage bg-morandi-sand/50 px-2.5 py-0.5 rounded-full inline-block w-fit";
+        }
+        if (detailsGroup) detailsGroup.classList.add('hidden');
+      }
+    }
+
+    function handleTotalAttendeesChange() {
+      const total = parseInt(document.getElementById('total_attendees')?.value || '1', 10);
+      const kidsContainer = document.getElementById('children_seat_container');
+      const dietaryContainer = document.getElementById('dietary_requirements_container');
+      if (total > 0) {
+        if (kidsContainer) kidsContainer.classList.remove('hidden');
+        if (dietaryContainer) dietaryContainer.classList.remove('hidden');
+      } else {
+        if (kidsContainer) kidsContainer.classList.add('hidden');
+        if (dietaryContainer) dietaryContainer.classList.add('hidden');
+      }
+    }
+
+    function smoothScrollTo(elementId, e) {
+      if (e) e.preventDefault();
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+          mobileMenu.classList.add('hidden');
+        }
+      }
+    }
+
     // Window load safeguard
     window.addEventListener('load', () => {
       updateCountdown();
+      generateMathProblem();
       handleInvitationChange();
       handleAttendanceChange();
       handleTotalAttendeesChange();
+
+      // Mobile menu toggle
+      const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+      if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', () => {
+          const menu = document.getElementById('mobile-menu');
+          if (menu) menu.classList.toggle('hidden');
+        });
+      }
 
       // 隱私後台管理捷徑：
       // 1. 網址加上 #admin (例如：your-site.html#admin) 即跳出管理密碼輸入框
